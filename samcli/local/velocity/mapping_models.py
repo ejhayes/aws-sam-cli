@@ -23,9 +23,6 @@ class BaseModel(object):
         self.event = event
 
     def _get_param(self, param=None):
-        import pytest
-        pytest.set_trace()
-
         if param is None:
             # return everything if no specific parameter is specified
             return {
