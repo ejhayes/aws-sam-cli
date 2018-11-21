@@ -73,8 +73,6 @@ class LambdaContainer(Container):
         additional_options = LambdaContainer._get_additional_options(runtime, debug_options)
         additional_volumes = LambdaContainer._get_additional_volumes(debug_options)
         cmd = [handler]
-        import pytest
-        #pytest.set_trace()
 
         super(LambdaContainer, self).__init__(image,
                                               cmd,
