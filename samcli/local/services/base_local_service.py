@@ -70,7 +70,14 @@ class BaseLocalService(object):
         # to turn on multi-threading because customers can realistically attach only one container at a time to
         # the debugger. Keeping this single threaded also enables the Lambda Runner to handle Ctrl+C in order to
         # kill the container gracefully (Ctrl+C can be handled only by the main thread)
-        multi_threaded = not self.is_debugging
+        #multi_threaded = not self.is_debugging
+        
+        # That being said above, if we want to call the local lambda service from within a
+        # lambda function, we will ultimately be calling the local lambda endpoint
+        # which will be blocked because that mocked service is busy servicing the current
+        # request (chicken and egg...). We do miss out on being able to add signal processing
+        # for each container.
+        multi_threaded = True
 
         LOG.debug("Localhost server is starting up. Multi-threading = %s", multi_threaded)
 
