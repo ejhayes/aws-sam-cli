@@ -1,10 +1,13 @@
 """
 Represents Lambda runtime containers.
 """
+import logging
+
 from enum import Enum
 
 from .container import Container
 
+LOG = logging.getLogger(__name__)
 
 class Runtime(Enum):
     nodejs = "nodejs"
@@ -46,6 +49,9 @@ class LambdaContainer(Container):
     # This is the dictionary that represents where the debugger_path arg is mounted in docker to as readonly.
     _DEBUGGER_VOLUME_MOUNT = {"bind": _DEBUGGER_VOLUME_MOUNT_PATH, "mode": "ro"}
 
+    # Number of debug ports in use
+    _DEBUGGER_PORTS_IN_USE = set()
+
     def __init__(self,
                  runtime,
                  handler,
@@ -74,6 +80,8 @@ class LambdaContainer(Container):
         additional_options = LambdaContainer._get_additional_options(runtime, debug_options)
         additional_volumes = LambdaContainer._get_additional_volumes(debug_options)
         cmd = [handler]
+        import pytest
+        #pytest.set_trace()
 
         super(LambdaContainer, self).__init__(image,
                                               cmd,
@@ -86,6 +94,36 @@ class LambdaContainer(Container):
                                               container_opts=additional_options,
                                               additional_volumes=additional_volumes)
 
+    def delete(self):
+        if self._exposed_ports:
+            port = self._exposed_ports.values()[0]
+            LOG.debug('Removing used port: %s', port)
+            LambdaContainer._DEBUGGER_PORTS_IN_USE.remove(port)
+
+        super(LambdaContainer, self).delete()
+
+    @staticmethod
+    def _get_next_debug_port(base_port):
+        # by default, use the base port
+        port = base_port
+
+        if LambdaContainer._DEBUGGER_PORTS_IN_USE:
+            current_ports = sorted(LambdaContainer._DEBUGGER_PORTS_IN_USE)
+            start, end = current_ports[0], current_ports[-1]
+
+            missing_ports = set(range(start,end + 1)).difference(current_ports)
+
+            # able to reuse a port
+            if missing_ports:
+                port = missing_ports[0]
+
+            # use the next available port
+            port = end + 1
+
+        LOG.debug('Using debug port: %s', port)
+        LambdaContainer._DEBUGGER_PORTS_IN_USE.add(port)
+        return port
+
     @staticmethod
     def _get_exposed_ports(debug_options):
         """
@@ -95,13 +133,15 @@ class LambdaContainer(Container):
 
         :param int debug_port: Optional, integer value of debug port
         :return dict: Dictionary containing port binding information. None, if debug_port was not given
-        """
+        """   
         if not debug_options:
             return None
 
+        host_port = LambdaContainer._get_next_debug_port(int(debug_options.debug_port))
+
         return {
             # container port : host port
-            debug_options.debug_port: debug_options.debug_port
+            debug_options.debug_port: host_port
         }
 
     @staticmethod

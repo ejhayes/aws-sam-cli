@@ -133,7 +133,8 @@ class LambdaRuntime(object):
 
         if is_debugging:
             LOG.debug("Setting up SIGTERM interrupt handler")
-            signal.signal(signal.SIGTERM, signal_handler)
+            if threading.current_thread().__class__.__name__ == '_MainThread':
+                signal.signal(signal.SIGTERM, signal_handler)
         else:
             # Start a timer, we'll use this to abort the function if it runs beyond the specified timeout
             LOG.debug("Starting a timer for %s seconds for function '%s'", timeout, function_name)
